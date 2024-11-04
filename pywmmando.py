@@ -10,7 +10,6 @@ import json
 from datetime import datetime
 import requests
 
-import psutil
 import wmdocklib
 from wmdocklib import helpers
 from wmdocklib import pywmgeneral
@@ -45,7 +44,7 @@ def aggregate_hourly(collection):
             }
 
     aggregated = [(key + ":00:00Z", val) for key, val in hourly.items()]
-    return (collection[-1]['online'], aggregated)
+    return (collection[-1]["online"], aggregated)
 
 
 # returns aggregated data from state json from monitor service
@@ -95,6 +94,7 @@ class MandoDockApp(wmdocklib.DockApp):
         self._history = {}
         self.aggregated = []
         self.online = False
+        self.time_val = 0
         helpers.add_mouse_region(
             0,
             self.graph_coords[0],
@@ -116,14 +116,20 @@ class MandoDockApp(wmdocklib.DockApp):
         count = 0
         while True:
             self._on_event(self.check_for_events())
-            color_setting = 0 
+            color_setting = 0
             if self.online:
-                color_setting = 0 
+                color_setting = 0
             elif not self.online:
                 color_setting = 2
 
-            position = 1
-            self._put_string(self.name, position, color_setting=color_setting)
+            self._put_string(self.name, v_pos=1, color_setting=color_setting)
+
+            self._put_string(
+                str(int(self.time_val)) + " ms",
+                h_pos=9,
+                v_pos=1,
+                color_setting=color_setting,
+            )
 
             self._draw_graph()
 
@@ -131,7 +137,7 @@ class MandoDockApp(wmdocklib.DockApp):
             self.redraw()
             count += 1
 
-            if count >= 10:
+            if count >= 50:
                 # Fetch data and update history graph
                 self._update_history()
                 count = 0
@@ -158,7 +164,7 @@ class MandoDockApp(wmdocklib.DockApp):
 
             return True
 
-    def _put_string(self, item, position, color_setting=0):
+    def _put_string(self, item, h_pos=1, v_pos=1, color_setting=0):
         name = item.upper()[:9]
         color_offset = 2
         color = max(
@@ -171,7 +177,7 @@ class MandoDockApp(wmdocklib.DockApp):
         )
         name = "".join([chr(ord(i) + color) for i in name])
 
-        self.fonts[0].add_string(name, 1, position)
+        self.fonts[0].add_string(name, v_pos, h_pos)
 
     def _update_history(self):
         new_data = {h["inserted"]: h for h in process_json(self.endpoint)}
@@ -181,6 +187,7 @@ class MandoDockApp(wmdocklib.DockApp):
 
         distinct = [val for key, val in self._history.items()]
         (self.online, self.aggregated) = aggregate_hourly(distinct)[:58]
+        self.time_val = self.aggregated[-1][1]["avg_time"]
 
     def _draw_graph(self):
         data = self.aggregated
