@@ -45,7 +45,7 @@ def aggregate_hourly(collection):
             }
 
     aggregated = [(key + ":00:00Z", val) for key, val in hourly.items()]
-    return aggregated
+    return (collection[-1]['online'], aggregated)
 
 
 # returns aggregated data from state json from monitor service
@@ -94,6 +94,7 @@ class MandoDockApp(wmdocklib.DockApp):
         self._current_graph = "efs"
         self._history = {}
         self.aggregated = []
+        self.online = False
         helpers.add_mouse_region(
             0,
             self.graph_coords[0],
@@ -115,12 +116,18 @@ class MandoDockApp(wmdocklib.DockApp):
         count = 0
         while True:
             self._on_event(self.check_for_events())
+            color_setting = 0 
+            if self.online:
+                color_setting = 0 
+            elif not self.online:
+                color_setting = 2
 
             position = 1
-            self._put_string(self.name, position, 2)
+            self._put_string(self.name, position, color_setting=color_setting)
 
             self._draw_graph()
-            self._draw_graph_label()
+
+            self._draw_graph_label(color_setting=color_setting)
             self.redraw()
             count += 1
 
@@ -173,12 +180,9 @@ class MandoDockApp(wmdocklib.DockApp):
         print(f"type:{type(self._history)}")
 
         distinct = [val for key, val in self._history.items()]
-        self.aggregated = aggregate_hourly(distinct)[:58]
+        (self.online, self.aggregated) = aggregate_hourly(distinct)[:58]
 
     def _draw_graph(self):
-        if not self._current_graph:
-            return
-
         data = self.aggregated
         time_scale = scale(data)
 
