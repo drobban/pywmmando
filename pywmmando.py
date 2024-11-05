@@ -72,6 +72,16 @@ def scale(hour_data):
     return scale
 
 
+def average_offset(hour_data):
+    avg_times = [hour["avg_time"] for (time, hour) in hour_data]
+    if avg_times:
+        avg = sum(avg_times) / len(avg_times)
+    else:
+        avg = 0
+
+    return avg
+
+
 class MandoDockApp(wmdocklib.DockApp):
     background_color = "#202020"
     graph_width = 58
@@ -125,7 +135,7 @@ class MandoDockApp(wmdocklib.DockApp):
             self._put_string(self.name, v_pos=1, color_setting=color_setting)
 
             self._put_string(
-                str(int(self.time_val)) + " ms",
+                str(int(self.time_val)) + " ms ",
                 h_pos=9,
                 v_pos=1,
                 color_setting=color_setting,
@@ -192,12 +202,19 @@ class MandoDockApp(wmdocklib.DockApp):
     def _draw_graph(self):
         data = self.aggregated
         time_scale = scale(data)
+        offset = average_offset(data)
 
         for count, (_hour, item) in enumerate(data):
             # height = int((item / 100) * self.graph_max_height)
-            height = int(
-                (item["avg_time"] * time_scale) * (self.graph_max_height / 100)
-            )
+            avg_time = item["avg_time"]
+            pixel_unit = self.graph_max_height / 100
+            flat_line = 50
+
+            adjusted = int(time_scale / 2)
+            g_height = flat_line - ((offset - avg_time) * adjusted)
+
+            height = int(g_height * pixel_unit)
+
             helpers.copy_xpm_area(
                 65,
                 self.graph_coords[1],
